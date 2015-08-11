@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.UUID
 
+import groovy.json.JsonOutput
 import groovy.transform.AutoClone
 import groovy.transform.Canonical
 import groovy.transform.ToString
@@ -38,15 +39,32 @@ import org.bson.BSONObject
 import org.bson.BasicBSONEncoder
 import org.bson.BasicBSONObject
 
+/***
+ * Data structures
+ **/
+
 UUID uuid1 = UUID.randomUUID()
 UUID uuid2 = UUID.randomUUID()
-String string1 = 'Panda Joe'
+String string1 = 'Panda123'
 String string2 = 'cn.shaanxi.qinling'
+
+list = [uuid1, uuid2, string1, string2]
+map = [SessionID: uuid1, RequestID: uuid2, User: string1, Domain: string2]
+
+println "UUID 1: $uuid1"
+println "UUID 2: $uuid2"
+println "String 1: $string1"
+println "String 2: $string2"
+println ''
+
+/***
+ * Encode manually into a byte buffer
+ **/
+println 'Manually encoded into byte buffer ----------------------------------------------'
 
 final int UUID_SIZE = 16
 final String SEPARATOR = '-'
 int bufferSize = UUID_SIZE + UUID_SIZE + string1.size() + SEPARATOR.size() + string2.size()
-println "Buffer size: ${bufferSize}"
 
 bytes = ByteBuffer.allocate(bufferSize).
 	putLong(uuid1.getMostSignificantBits()).
@@ -55,40 +73,71 @@ bytes = ByteBuffer.allocate(bufferSize).
 	putLong(uuid2.getLeastSignificantBits()).
 	put((string1 + SEPARATOR + string2).getBytes('UTF-8')).
 	array()
-
-println "Bytes (${bytes.length}): $bytes"
-
-
-
-
-/***
- * Final tests
- **/
-
-// map with UUID object
-/*byte[] bsonBytes = mapToBsonBytes([d: uuid])
-println "BSON bytes (${bsonBytes.length}): $bsonBytes"
-byte[] bsonBase64Bytes = Base64.encodeBase64(bsonBytes)
-println "BSON Base64 bytes (${bsonBase64Bytes.length}): $bsonBase64Bytes"
-String bsonBase64String = Base64.encodeBase64String(bsonBytes)
-println "BSON Base64 string (${bsonBase64String.size()}): $bsonBase64String"
-Map<?, ?> decodedData = decodeBsonBytes(bsonBytes)
-println "Decoded data (${decodedData.toString().size()}): $decodedData"
-
+base64String = Base64.encodeBase64String(bytes)
+println "Encoded bytes (${bytes.length}): $bytes"
+println "Encoded base64 (${base64String.size()}): $base64String"
 println ''
 
-long hi = uuid.getMostSignificantBits()
-long lo = uuid.getLeastSignificantBits()
-bsonBytes = ByteBuffer.allocate(16).putLong(hi).putLong(lo).array()
-println "BSON bytes (${bsonBytes.length}): $bsonBytes"
-bsonBase64Bytes = Base64.encodeBase64(bsonBytes)
-println "BSON Base64 bytes (${bsonBase64Bytes.length}): $bsonBase64Bytes"
-bsonBase64String = Base64.encodeBase64String(bsonBytes)
-println "BSON Base64 string (${bsonBase64String.size()}): $bsonBase64String"
-byte[] decodedBsonBytes = Base64.decodeBase64(bsonBase64Bytes)
-bb = ByteBuffer.wrap(decodedBsonBytes)
-long decodedHi = bb.getLong()
-long decodedLo = bb.getLong()
-UUID decodedUUID = new UUID(decodedHi, decodedLo)  // haven't tested this yet
-println "Decoded data (${decodedUUID.toString().size()}): $decodedUUID"
-*/
+/***
+ * Decode manually out from a byte buffer
+ **/
+
+byteBuffer = ByteBuffer.wrap(Base64.decodeBase64(base64String))
+UUID decodedUUID1 = new UUID(byteBuffer.getLong(), byteBuffer.getLong())
+UUID decodedUUID2 = new UUID(byteBuffer.getLong(), byteBuffer.getLong())
+byte[] stringBytes = new byte[byteBuffer.remaining()]
+byteBuffer.get(stringBytes)
+String[] strings = new String(stringBytes, 'UTF-8').split(SEPARATOR)
+String decodedString1 = strings[0]
+String decodedString2 = strings[1]
+
+println "Decoded UUID 1: $decodedUUID1"
+println "Decoded UUID 2: $decodedUUID2"
+println "Decoded String 1: $decodedString1"
+println "Decoded String 2: $decodedString2"
+println ''
+
+/***
+ * JSON - list
+ **/
+println 'JSON list ----------------------------------------------------------------------'
+jsonList = JsonOutput.toJson(list)
+base64String = Base64.encodeBase64String(jsonList.getBytes('UTF-8'))
+println "JSON List (${jsonList.size()}): $jsonList"
+println "Encoded base64 JSON list (${base64String.size()}): $base64String"
+println ''
+
+/***
+ * JSON - map
+ **/
+println 'JSON map -----------------------------------------------------------------------'
+jsonMap = JsonOutput.toJson(map)
+base64String = Base64.encodeBase64String(jsonMap.getBytes('UTF-8'))
+println "JSON Map (${jsonMap.size()}): $jsonMap"
+println "Encoded base64 JSON map (${base64String.size()}): $base64String"
+println ''
+
+/***
+ * BSON - list
+ **/
+println 'BSON list ----------------------------------------------------------------------'
+BSONObject bsonObject = new BasicBSONObject(['': list])
+BSONEncoder bsonEncoder = new BasicBSONEncoder()
+byte[] bsonBytes = bsonEncoder.encode(bsonObject)
+base64String = Base64.encodeBase64String(bsonBytes)
+println "BSON List (${bsonBytes.size()}): $bsonBytes"
+println "Encoded base64 BSON list (${base64String.size()}): $base64String"
+println ''
+
+/***
+ * BSON - map
+ **/
+println 'BSON map -----------------------------------------------------------------------'
+bsonObject = new BasicBSONObject(map)
+bsonEncoder = new BasicBSONEncoder()
+bsonBytes = bsonEncoder.encode(bsonObject)
+base64String = Base64.encodeBase64String(bsonBytes)
+println "BSON map (${bsonBytes.size()}): $bsonBytes"
+println "Encoded base64 BSON map (${base64String.size()}): $base64String"
+println ''
+
